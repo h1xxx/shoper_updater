@@ -22,6 +22,8 @@ type Session struct {
 
 	LogFd *os.File
 	log   *log.Logger
+
+	apiCallsLeft int
 }
 
 func NewSession(URL, login, pass string) (*Session, error) {

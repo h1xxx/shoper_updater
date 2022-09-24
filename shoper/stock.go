@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 )
 
 type StockPageT struct {
@@ -25,12 +26,13 @@ type StockT struct {
 	Ean       string `json:"ean"`
 }
 
-func (s *Session) GetStock() (StockPageT, error) {
+func (s *Session) GetStock(page int) (StockPageT, error) {
 	var stockPage StockPageT
 
 	client := &http.Client{}
-	req, err := http.NewRequest("GET",
-		s.URL+"/webapi/rest/product-stocks/?limit=50", nil)
+	url := fmt.Sprintf("%s/webapi/rest/product-stocks/?page=%d&limit=50",
+		s.URL, page)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return stockPage, err
 	}
@@ -49,10 +51,42 @@ func (s *Session) GetStock() (StockPageT, error) {
 		return stockPage, errors.New(msg)
 	}
 
+	s.apiCallsLeft, err = getApiCallsLeft(resp.Header)
+	if err != nil {
+		return stockPage, err
+	}
+
+	if s.apiCallsLeft < 5 {
+		// todo: implement sleep
+		return stockPage, nil
+	}
+
 	err = json.NewDecoder(resp.Body).Decode(&stockPage)
 	if err != nil {
 		return stockPage, err
 	}
 
 	return stockPage, nil
+}
+
+func getApiCallsLeft(headers http.Header) (int, error) {
+	callsStr, callsExists := headers["X-Shop-Api-Calls"]
+	limitStr, limitExists := headers["X-Shop-Api-Limit"]
+	if !(callsExists && limitExists) {
+		return 0, errors.New("no 'X-Shop-Api' headers in response")
+	}
+
+	calls, err := strconv.ParseInt(callsStr[0], 10, 64)
+	if err != nil {
+		return 0, errors.New("invalid X-Shop-Api-Calls header")
+	}
+
+	limit, err := strconv.ParseInt(limitStr[0], 10, 64)
+	if err != nil {
+		return 0, errors.New("invalid X-Shop-Api-Limit header")
+	}
+
+	apiCallsLeft := int(limit - calls)
+
+	return apiCallsLeft, nil
 }

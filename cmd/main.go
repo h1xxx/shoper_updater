@@ -33,18 +33,20 @@ func main() {
 
 	s, err := sh.NewSession(url, login, pass)
 	if err != nil {
-		fmt.Println("error while creating session, aboring...")
+		fmt.Println("error while creating session, aborting...")
 		fmt.Println(err)
 		return
 	}
 
-	stockPage, err := s.GetStock()
+	var stocks []sh.StockT
+	stockPage, err := s.GetStock(1)
 	if err != nil {
-		fmt.Println("error while getting stock page, aboring...")
+		fmt.Println("error while getting stock page, aborting...")
 		fmt.Println(err)
 		return
 	}
-	fmt.Printf("%+v\n", len(stockPage.StockList))
+	stocks = append(stocks, stockPage.StockList...)
+	fmt.Printf("%+v\n", len(stocks))
 
 	s.LogFd.Close()
 }
