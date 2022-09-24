@@ -3,17 +3,21 @@ package input
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 )
 
-func ParseStanMag(file string) map[string]float64 {
+func ParseStanMag(file string) (map[string]float64, int, error) {
 	stanMag := make(map[string]float64)
-	f, err := os.Open(file)
-	errExit(err, "can't open file: "+file)
-	scanner := bufio.NewScanner(f)
+	var errCount int
+
+	fd, err := os.Open(file)
+	defer fd.Close()
+	if err != nil {
+		return nil, errCount, err
+	}
+	scanner := bufio.NewScanner(fd)
 
 	var i int
 	for scanner.Scan() {
@@ -24,19 +28,26 @@ func ParseStanMag(file string) map[string]float64 {
 		w := "line needs to have 3 fields, ignoring"
 		msg := fmt.Sprintf("Data_mag.txt:%d %s\n%s", i, w, line)
 		if len(fields) != 3 {
+			errCount++
 			warn(msg)
 		}
 
 		code := fields[0]
 		quantity := strings.Replace(fields[1], ",", ".", -1)
 
-		if code == "" || code == "SYMBOL" {
+		if code == "SYMBOL" {
+			continue
+		}
+
+		if code == "" {
+			errCount++
 			continue
 		}
 
 		w = "1st field too short, ignoring"
 		msg = fmt.Sprintf("Data_mag.txt:%d %s\n%s", i, w, line)
 		if len(code) < 4 {
+			errCount++
 			warn(msg)
 			continue
 		}
@@ -46,6 +57,7 @@ func ParseStanMag(file string) map[string]float64 {
 		w = "2nd field not a float number, ignoring"
 		msg = fmt.Sprintf("Data_mag.txt:%d %s\n%s", i, w, line)
 		if err != nil || !strings.Contains(quantity, ".") {
+			errCount++
 			warn(msg)
 			continue
 		}
@@ -54,6 +66,7 @@ func ParseStanMag(file string) map[string]float64 {
 		msg = fmt.Sprintf("Data_mag.txt:%d %s\n%s", i, w, line)
 		_, exists := stanMag[code]
 		if exists {
+			errCount++
 			warn(msg)
 			continue
 		}
@@ -61,17 +74,10 @@ func ParseStanMag(file string) map[string]float64 {
 		stanMag[code] = quantityFl
 	}
 
-	return stanMag
+	return stanMag, errCount, nil
 }
 
 func warn(msg string) {
 	//log.Println("WARNING: " + msg)
 	return
-}
-
-func errExit(err error, msg string) {
-	if err != nil {
-		log.Println("\n * " + msg)
-		log.Fatal(err)
-	}
 }

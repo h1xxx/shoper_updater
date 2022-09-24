@@ -12,11 +12,20 @@ import (
 func main() {
 	os.MkdirAll("tmp/", 0700)
 
-	stanMag := in.ParseStanMag("data/Stan_mag.txt")
-	fmt.Println("Stan_mag.txt products:", len(stanMag))
+	stanMag, errCount, err := in.ParseStanMag("data/Stan_mag.txt")
+	if err != nil {
+		fmt.Println("can't open Stan_mag.txt. aborting...")
+		return
+	}
+	fmt.Println("=== Stan_mag.txt ===")
+	fmt.Printf("products:\t%d\n", len(stanMag))
+	fmt.Printf("errors:\t\t%d\n", errCount)
+	errRate := errCount * 100 / len(stanMag)
+	fmt.Printf("error rate:\t%d%%\n", errRate)
 
-	if len(os.Args) > 20 {
-		log.Fatalln("Usage: main <searchterm>")
+	if errRate > 30 {
+		fmt.Println("error rate above 30%. aborting...")
+		return
 	}
 
 	url := os.Getenv("SHOPER_URL")
@@ -29,11 +38,4 @@ func main() {
 	}
 
 	s.LogFd.Close()
-}
-
-func errExit(err error, msg string) {
-	if err != nil {
-		log.Println("\n * " + msg)
-		log.Fatal(err)
-	}
 }
