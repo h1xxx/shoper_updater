@@ -11,8 +11,6 @@ import (
 	t "time"
 )
 
-const BaseURL = "https://api.shodan.io"
-
 type Session struct {
 	URL   string
 	login string
@@ -94,20 +92,6 @@ func (s *Session) tokenFromFile() error {
 	return nil
 }
 
-func (s *Session) saveToken() error {
-	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
-	fd, err := os.OpenFile("tmp/token", flags, 0600)
-	defer fd.Close()
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintln(fd, s.Token)
-	fmt.Fprintln(fd, s.TokenExp.Format(t.RFC1123Z))
-
-	return nil
-}
-
 func (s *Session) getToken() error {
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", s.URL+"/webapi/rest/auth", nil)
@@ -128,6 +112,20 @@ func (s *Session) getToken() error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (s *Session) saveToken() error {
+	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
+	fd, err := os.OpenFile("tmp/token", flags, 0600)
+	defer fd.Close()
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(fd, s.Token)
+	fmt.Fprintln(fd, s.TokenExp.Format(t.RFC1123Z))
 
 	return nil
 }
