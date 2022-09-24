@@ -107,6 +107,10 @@ func (s *Session) getToken() error {
 	if err != nil {
 		return err
 	}
+	if resp.StatusCode != 200 {
+		msg := fmt.Sprintf("error getting token: %d", resp.StatusCode)
+		return errors.New(msg)
+	}
 
 	err = json.NewDecoder(resp.Body).Decode(&s)
 	if err != nil {

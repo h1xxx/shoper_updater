@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	in "shoper_updater/input"
@@ -14,7 +13,7 @@ func main() {
 
 	stanMag, errCount, err := in.ParseStanMag("data/Stan_mag.txt")
 	if err != nil {
-		fmt.Println("can't open Stan_mag.txt. aborting...")
+		fmt.Println("can't open ./data/Stan_mag.txt, aborting...")
 		return
 	}
 	fmt.Println("=== Stan_mag.txt ===")
@@ -24,7 +23,7 @@ func main() {
 	fmt.Printf("error rate:\t%d%%\n", errRate)
 
 	if errRate > 30 {
-		fmt.Println("error rate above 30%. aborting...")
+		fmt.Println("error rate above 30%, aborting...")
 		return
 	}
 
@@ -34,8 +33,18 @@ func main() {
 
 	s, err := sh.NewSession(url, login, pass)
 	if err != nil {
-		log.Panicln(err)
+		fmt.Println("error while creating session, aboring...")
+		fmt.Println(err)
+		return
 	}
+
+	stockPage, err := s.GetStock()
+	if err != nil {
+		fmt.Println("error while getting stock page, aboring...")
+		fmt.Println(err)
+		return
+	}
+	fmt.Printf("%+v\n", len(stockPage.StockList))
 
 	s.LogFd.Close()
 }
