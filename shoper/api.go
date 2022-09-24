@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 func (s *Session) callApi(url, method, data string, res interface{}) error {
@@ -33,11 +34,7 @@ func (s *Session) callApi(url, method, data string, res interface{}) error {
 	if err != nil {
 		return err
 	}
-
-	if s.apiCallsLeft < 5 {
-		// todo: implement sleep
-		return nil
-	}
+	slowDown(s.apiCallsLeft)
 
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
@@ -67,4 +64,17 @@ func getApiCallsLeft(headers http.Header) (int, error) {
 	apiCallsLeft := int(limit - calls)
 
 	return apiCallsLeft, nil
+}
+
+func slowDown(callsLeft int) {
+	switch {
+	case callsLeft <= 1:
+		time.Sleep(30 * time.Second)
+	case callsLeft <= 3:
+		time.Sleep(10 * time.Second)
+	case callsLeft <= 5:
+		time.Sleep(500 * time.Millisecond)
+	case callsLeft <= 8:
+		time.Sleep(200 * time.Millisecond)
+	}
 }
