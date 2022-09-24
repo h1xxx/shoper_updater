@@ -18,19 +18,19 @@ type Session struct {
 	login string
 	pass  string
 
-	Token        string `json:"access_token"`
-	TokenExpIn   int    `json:"expires_in"`
-	TokenExp t.Time
+	Token      string `json:"access_token"`
+	TokenExpIn int    `json:"expires_in"`
+	TokenExp   t.Time
 
 	LogFd *os.File
-	log *log.Logger
+	log   *log.Logger
 }
 
 func NewSession(URL, login, pass string) (*Session, error) {
 	var err error
 	s := &Session{URL: URL, login: login, pass: pass}
 
-	flags := os.O_CREATE|os.O_APPEND|os.O_WRONLY
+	flags := os.O_CREATE | os.O_APPEND | os.O_WRONLY
 	s.LogFd, err = os.OpenFile("tmp/shoper.log", flags, 0600)
 	if err != nil {
 		return nil, err
@@ -40,8 +40,8 @@ func NewSession(URL, login, pass string) (*Session, error) {
 	s.log.Printf("=== %s session start ===\n", s.URL)
 
 	err = s.tokenFromFile()
-	inAweek := t.Now().AddDate(0,0,7)
-	if err != nil  || s.TokenExp.Before(inAweek) {
+	inAweek := t.Now().AddDate(0, 0, 7)
+	if err != nil || s.TokenExp.Before(inAweek) {
 		err = s.getToken()
 		if err != nil {
 			s.log.Println(err)
@@ -61,7 +61,7 @@ func NewSession(URL, login, pass string) (*Session, error) {
 		s.log.Println("token read from ./tmp/token")
 	}
 
-	s.log.Println("token expiry date: "+ s.TokenExp.Format(t.RFC1123Z))
+	s.log.Println("token expiry date: " + s.TokenExp.Format(t.RFC1123Z))
 
 	return s, err
 }
@@ -71,13 +71,13 @@ func (s *Session) tokenFromFile() error {
 	defer fd.Close()
 	if err != nil {
 		return err
-	}	
+	}
 
-        var i int
-        scanner := bufio.NewScanner(fd)
-        for scanner.Scan() {
-                i += 1
-                line := scanner.Text()
+	var i int
+	scanner := bufio.NewScanner(fd)
+	for scanner.Scan() {
+		i += 1
+		line := scanner.Text()
 		switch i {
 		case 1:
 			s.Token = line
@@ -85,7 +85,7 @@ func (s *Session) tokenFromFile() error {
 			s.TokenExp, err = t.Parse(t.RFC1123Z, line)
 			if err != nil {
 				return err
-			}	
+			}
 		default:
 			return errors.New("too many lines in ./tmp/token file")
 		}
@@ -95,7 +95,7 @@ func (s *Session) tokenFromFile() error {
 }
 
 func (s *Session) saveToken() error {
-	flags := os.O_CREATE|os.O_TRUNC|os.O_WRONLY
+	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
 	fd, err := os.OpenFile("tmp/token", flags, 0600)
 	defer fd.Close()
 	if err != nil {
