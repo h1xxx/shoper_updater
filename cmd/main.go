@@ -38,14 +38,15 @@ func main() {
 		return
 	}
 
-	var stocks []sh.StockT
-	stockPage, err := s.GetStock(1)
+	stockList, err := s.GetStockList()
 	if err != nil {
 		fmt.Println("error while getting stock page, aborting...")
 		fmt.Println(err)
 		return
 	}
-	stocks = append(stocks, stockPage.StockList...)
+
+	stocks, err := sh.GetStockMap(stockList)
+
 	fmt.Printf("%+v\n", len(stocks))
 
 	s.LogFd.Close()
