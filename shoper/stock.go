@@ -24,6 +24,8 @@ type StockT struct {
 	ProductID   string `json:"product_id"`
 	ProductCode string `json:"code"`
 	EAN         string `json:"ean"`
+
+	NewStock float64
 }
 
 type bulkRespT struct {
@@ -170,4 +172,37 @@ func GetStockMap(stockList []StockT) (map[string]StockT, error) {
 		stocks[s.ProductCode] = s
 	}
 	return stocks, nil
+}
+
+// outputs only products that are in input file and in Stan_mag.txt file
+func GetStanMagStock(stocks map[string]StockT, stanMag map[string]float64) map[string]StockT {
+	res := make(map[string]StockT)
+	for k, v := range stanMag {
+		_, exists := stocks[k]
+		if exists {
+			product := stocks[k]
+			product.NewStock = v
+			res[k] = product
+		}
+	}
+
+	return res
+}
+
+// outputs only products that need to have stock value updated
+func GetUpdateStock(stocks map[string]StockT) (map[string]StockT, error) {
+	res := make(map[string]StockT)
+	for k, v := range stocks {
+		stock, err := strconv.ParseFloat(v.Stock, 64)
+		if err != nil {
+			msg := "can't parse product stock count"
+			return res, errors.New(msg)
+		}
+
+		if stock != v.NewStock {
+			res[k] = v
+		}
+	}
+
+	return res, nil
 }
