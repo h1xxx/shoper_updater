@@ -1,6 +1,7 @@
 package shoper
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,9 +10,9 @@ import (
 	"time"
 )
 
-func (s *Session) callApi(url, method, data string, res interface{}) error {
+func (s *Session) callApi(url, method string, data []byte, res interface{}) error {
 	client := &http.Client{}
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest(method, url, bytes.NewReader(data))
 	if err != nil {
 		return err
 	}
@@ -20,11 +21,15 @@ func (s *Session) callApi(url, method, data string, res interface{}) error {
 	req.Header.Set("Authorization", "Bearer "+s.Token)
 	req.Close = true
 
+	if method == "POST" || method == "PUT" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
 	resp, err := client.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		msg := fmt.Sprintf("error making api call: %d", resp.StatusCode)
 		return errors.New(msg)

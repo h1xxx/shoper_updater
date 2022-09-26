@@ -1,6 +1,7 @@
 package shoper
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -25,13 +26,23 @@ type StockT struct {
 	EAN         string `json:"ean"`
 }
 
+type bulkRespT struct {
+	Errors bool     `json:"errors"`
+	Items  []itemsT `json:"items"`
+}
+
+type itemsT struct {
+	Code      int        `json:"code"`
+	StockPage StockPageT `json:"body"`
+}
+
 func (s *Session) getStockPage(page int) (StockPageT, error) {
 	var stockPage StockPageT
 
 	url := fmt.Sprintf("%s/webapi/rest/product-stocks/?page=%d&limit=50",
 		s.URL, page)
 
-	err := s.callApi(url, "GET", "", &stockPage)
+	err := s.callApi(url, "GET", nil, &stockPage)
 	if err != nil {
 		return stockPage, err
 	}
@@ -40,36 +51,106 @@ func (s *Session) getStockPage(page int) (StockPageT, error) {
 }
 
 func (s *Session) GetStockList() ([]StockT, error) {
-	var stockList []StockT
-	var stockPage StockPageT
-
-	// getting the first page shows how many pages there are
-	stockFirstPage, err := s.getStockPage(1)
+	// get the first page to see the stock and stock pages counts
+	stockPage1, err := s.getStockPage(1)
 	if err != nil {
-		return stockList, err
-	}
-	stockList = append(stockList, stockFirstPage.StockList...)
-	stockCount, err := strconv.ParseInt(stockFirstPage.StockCount, 10, 64)
-	if err != nil {
-		return stockList, errors.New("can't parse stock count")
+		return []StockT{}, err
 	}
 
-	// iterate all remaining pages
-	for page := 2; page <= stockFirstPage.Pages; page++ {
-		stockPage, err = s.getStockPage(page)
+	pagesCount := stockPage1.Pages
+	stockCount, err := strconv.ParseInt(stockPage1.StockCount, 10, 64)
+	if err != nil {
+		return []StockT{}, errors.New("can't parse stock count")
+	}
+
+	// prepare data for json payload
+	var bulkDataList [][]byte
+	for i := 2; i <= int(pagesCount); i += 25 {
+		bulkData, err := getPagesBulk(i, i+24)
 		if err != nil {
-			return stockList, err
+			msg := "can't prepare bulk data for getting stock info"
+			return []StockT{}, errors.New(msg)
 		}
-		stockList = append(stockList, stockPage.StockList...)
+		bulkDataList = append(bulkDataList, bulkData)
+	}
+
+	// append the stock lists from the api call responses
+	var stockList []StockT
+	stockList = append(stockList, stockPage1.StockList...)
+	for _, data := range bulkDataList {
+		var resp bulkRespT
+		err = s.callApi(s.URL+"/webapi/rest/bulk/", "PUT", data, &resp)
+		if err != nil {
+			return []StockT{}, err
+		}
+
+		for _, i := range resp.Items {
+			stockList = append(stockList, i.StockPage.StockList...)
+		}
 	}
 
 	// check if all stock IDs were processed
+
 	if len(stockList) != int(stockCount) {
 		msg := "len of stock list doesn't match info from API"
-		return stockList, errors.New(msg)
+		return []StockT{}, errors.New(msg)
 	}
 
 	return stockList, nil
+}
+
+func getPagesBulk(pageStart, pageEnd int) ([]byte, error) {
+	type bulkPageParamsT struct {
+		Limit string `json:"limit"`
+		Page  string `json:"page"`
+	}
+
+	type bulkPageT struct {
+		Id     string          `json:"id"`
+		Path   string          `json:"path"`
+		Params bulkPageParamsT `json:"params"`
+		Method string          `json:"method"`
+	}
+
+	var data []bulkPageT
+	for page := pageStart; page <= pageEnd; page++ {
+		var el bulkPageT
+		el.Id = fmt.Sprintf("product-stocks-%d", page)
+		el.Path = "/webapi/rest/product-stocks"
+		el.Method = "GET"
+
+		var params bulkPageParamsT
+		params.Limit = "50"
+		params.Page = fmt.Sprintf("%d", page)
+		el.Params = params
+
+		data = append(data, el)
+	}
+
+	postBody, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return postBody, nil
+}
+
+func getProductsBulk(productList []string) ([]byte, error) {
+	var data []map[string]string
+	for _, id := range productList {
+		el := make(map[string]string)
+		el["id"] = fmt.Sprintf("product-stocks-%d", id)
+		el["path"] = fmt.Sprintf("/webapi/rest/product-stocks/%d", id)
+		el["method"] = "GET"
+		data = append(data, el)
+	}
+
+	postBody, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return postBody, nil
 }
 
 func GetStockMap(stockList []StockT) (map[string]StockT, error) {
