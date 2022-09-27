@@ -155,11 +155,13 @@ func getProductsBulk(productList []string) ([]byte, error) {
 	return postBody, nil
 }
 
+// creates a map of product_id => product_info from product list
 func GetStockMap(stockList []StockT) (map[string]StockT, error) {
 	stocks := make(map[string]StockT)
+	var emptyProd int
 	for _, s := range stockList {
 		if s.ProductCode == "" {
-			// todo: make some threshold on count of this case
+			emptyProd++
 			continue
 		}
 
@@ -171,6 +173,11 @@ func GetStockMap(stockList []StockT) (map[string]StockT, error) {
 
 		stocks[s.ProductCode] = s
 	}
+
+	if emptyProd > 100 {
+		fmt.Printf("WARNING! empty product count: %d\n", emptyProd)
+	}
+
 	return stocks, nil
 }
 

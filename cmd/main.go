@@ -3,21 +3,20 @@ package main
 import (
 	"fmt"
 	"os"
-	fp "path/filepath"
-	"strings"
 
 	in "shoper_updater/input"
 	sh "shoper_updater/shoper"
 )
 
 func main() {
-	os.MkdirAll("tmp/", 0700)
+	os.MkdirAll("log/", 0700)
 
 	fmt.Println("=== Stan_mag.txt ===")
 
 	stanMag, errCount, err := in.ParseStanMag("data/Stan_mag.txt")
 	if err != nil {
-		fmt.Println("can't open ./data/Stan_mag.txt, aborting...")
+		fmt.Println("can't parse ./data/Stan_mag.txt, aborting...")
+		fmt.Println(err)
 		return
 	}
 	fmt.Printf("products\t%6d\n", len(stanMag))
@@ -34,14 +33,14 @@ func main() {
 	login := os.Getenv("SHOPER_LOGIN")
 	pass := os.Getenv("SHOPER_PASS")
 
-	fmt.Printf("\n=== %s ===\n", strings.Trim(fp.Base(url), "www."))
-
 	s, err := sh.NewSession(url, login, pass)
 	if err != nil {
 		fmt.Println("error while creating session, aborting...")
 		fmt.Println(err)
 		return
 	}
+
+	fmt.Printf("\n=== %s ===\n", s.Domain)
 
 	stockList, err := s.GetStockList()
 	if err != nil {

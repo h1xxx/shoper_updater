@@ -2,7 +2,9 @@ package input
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -10,7 +12,17 @@ import (
 
 func ParseStanMag(file string) (map[string]float64, int, error) {
 	stanMag := make(map[string]float64)
-	var errCount int
+	var errCount, emptyProd int
+
+	flags := os.O_CREATE | os.O_APPEND | os.O_WRONLY
+	logFd, err := os.OpenFile("log/stan_mag.log", flags, 0600)
+	defer logFd.Close()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	l := log.New(logFd, "", log.LstdFlags)
+	l.Println("=== parsing start ===")
 
 	fd, err := os.Open(file)
 	defer fd.Close()
@@ -25,11 +37,11 @@ func ParseStanMag(file string) (map[string]float64, int, error) {
 		line := scanner.Text()
 		fields := strings.Split(line, "\t")
 
-		w := "line needs to have 3 fields, ignoring"
-		msg := fmt.Sprintf("Data_mag.txt:%d %s\n%s", i, w, line)
+		w := "line needs to have 3 fields"
+		msg := fmt.Sprintf("line:%d %s\t'%s'", i, w, line)
 		if len(fields) != 3 {
 			errCount++
-			warn(msg)
+			l.Println(msg)
 		}
 
 		code := fields[0]
@@ -40,44 +52,46 @@ func ParseStanMag(file string) (map[string]float64, int, error) {
 		}
 
 		if code == "" {
-			errCount++
+			emptyProd++
 			continue
 		}
 
-		w = "1st field too short, ignoring"
-		msg = fmt.Sprintf("Data_mag.txt:%d %s\n%s", i, w, line)
+		w = "1st field too short"
+		msg = fmt.Sprintf("line:%d %s\t\t'%s'", i, w, line)
 		if len(code) < 4 {
 			errCount++
-			warn(msg)
+			l.Println(msg)
 			continue
 		}
 
 		quantityFl, err := strconv.ParseFloat(quantity, 64)
 
-		w = "2nd field not a float number, ignoring"
-		msg = fmt.Sprintf("Data_mag.txt:%d %s\n%s", i, w, line)
+		w = "2nd field not a float number"
+		msg = fmt.Sprintf("line:%d %s\t'%s'", i, w, line)
 		if err != nil || !strings.Contains(quantity, ".") {
 			errCount++
-			warn(msg)
+			l.Println(msg)
 			continue
 		}
 
-		w = "product code already exists, ignoring"
-		msg = fmt.Sprintf("Data_mag.txt:%d %s\n%s", i, w, line)
+		w = "product code already exists"
+		msg = fmt.Sprintf("line:%d %s\t'%s'", i, w, line)
 		_, exists := stanMag[code]
 		if exists {
 			errCount++
-			warn(msg)
+			l.Println(msg)
 			continue
 		}
 
 		stanMag[code] = quantityFl
 	}
 
-	return stanMag, errCount, nil
-}
+	l.Printf("errors: %d\n", errCount)
+	l.Printf("lines with empty product: %d\n", emptyProd)
 
-func warn(msg string) {
-	//log.Println("WARNING: " + msg)
-	return
+	if len(stanMag) == 0 {
+		return nil, 0, errors.New("no valid entries")
+	}
+
+	return stanMag, errCount, nil
 }

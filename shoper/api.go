@@ -10,6 +10,20 @@ import (
 	"time"
 )
 
+var ERRCODE = map[int]string{
+	400: "Invalid request",
+	401: "Authentication error",
+	402: "Payment required",
+	403: "Access denied",
+	404: "An object doesn't exist",
+	405: "Invalid request method",
+	409: "Conflict - another administrator has locked an access to the object",
+	429: "Calls limit exceeded",
+	500: "Application error",
+	501: "Method not implemented",
+	503: "System is temporarily unavailable (application has been completely locked by administrator)",
+}
+
 func (s *Session) callApi(url, method string, data []byte, res interface{}) error {
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bytes.NewReader(data))
@@ -31,7 +45,8 @@ func (s *Session) callApi(url, method string, data []byte, res interface{}) erro
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		msg := fmt.Sprintf("error making api call: %d", resp.StatusCode)
+		msg := fmt.Sprintf("error making api call: %d - %s",
+			resp.StatusCode, ERRCODE[resp.StatusCode])
 		return errors.New(msg)
 	}
 

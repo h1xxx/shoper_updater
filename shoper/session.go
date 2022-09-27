@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	fp "path/filepath"
+	"strings"
 	t "time"
 )
 
@@ -16,6 +18,7 @@ type Session struct {
 	login string
 	pass  string
 
+	Domain     string
 	Token      string `json:"access_token"`
 	TokenExpIn int    `json:"expires_in"`
 	TokenExp   t.Time
@@ -29,9 +32,10 @@ type Session struct {
 func NewSession(URL, login, pass string) (*Session, error) {
 	var err error
 	s := &Session{URL: URL, login: login, pass: pass}
+	s.Domain = strings.Trim(fp.Base(URL), "www.")
 
 	flags := os.O_CREATE | os.O_APPEND | os.O_WRONLY
-	s.LogFd, err = os.OpenFile("tmp/shoper.log", flags, 0600)
+	s.LogFd, err = os.OpenFile("log/shoper.log", flags, 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -56,9 +60,9 @@ func NewSession(URL, login, pass string) (*Session, error) {
 			return nil, err
 		}
 
-		s.log.Println("new token saved to ./tmp/token")
+		s.log.Println("new token saved to ./log/token")
 	} else {
-		s.log.Println("token read from ./tmp/token")
+		s.log.Println("token read from ./log/token")
 	}
 
 	s.log.Println("token expiry date: " + s.TokenExp.Format(t.RFC1123Z))
@@ -67,7 +71,7 @@ func NewSession(URL, login, pass string) (*Session, error) {
 }
 
 func (s *Session) tokenFromFile() error {
-	fd, err := os.Open("tmp/token")
+	fd, err := os.Open("log/token")
 	defer fd.Close()
 	if err != nil {
 		return err
@@ -87,7 +91,7 @@ func (s *Session) tokenFromFile() error {
 				return err
 			}
 		default:
-			return errors.New("too many lines in ./tmp/token file")
+			return errors.New("too many lines in ./log/token file")
 		}
 	}
 
@@ -110,7 +114,8 @@ func (s *Session) getToken() error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		msg := fmt.Sprintf("error getting token: %d", resp.StatusCode)
+		msg := fmt.Sprintf("error getting token: %d - %s",
+			resp.StatusCode, ERRCODE[resp.StatusCode])
 		return errors.New(msg)
 	}
 
@@ -124,7 +129,7 @@ func (s *Session) getToken() error {
 
 func (s *Session) saveToken() error {
 	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
-	fd, err := os.OpenFile("tmp/token", flags, 0600)
+	fd, err := os.OpenFile("log/token", flags, 0600)
 	defer fd.Close()
 	if err != nil {
 		return err
