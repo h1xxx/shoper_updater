@@ -43,7 +43,7 @@ func NewSession(URL, login, pass string) (*Session, error) {
 	s.log = log.New(s.LogFd, "", log.LstdFlags)
 	s.log.Printf("=== %s session start ===\n", s.URL)
 
-	err = s.tokenFromFile()
+	err = s.tokenFromFile(s.Domain)
 	inAweek := t.Now().AddDate(0, 0, 7)
 	if err != nil || s.TokenExp.Before(inAweek) {
 		err = s.getToken()
@@ -54,15 +54,15 @@ func NewSession(URL, login, pass string) (*Session, error) {
 
 		s.TokenExp = t.Now().Add(t.Second * t.Duration(s.TokenExpIn))
 
-		err = s.saveToken()
+		err = s.saveToken(s.Domain)
 		if err != nil {
 			s.log.Println(err)
 			return nil, err
 		}
 
-		s.log.Println("new token saved to ./log/token")
+		s.log.Println("new token saved to ./log/token_" + s.Domain)
 	} else {
-		s.log.Println("token read from ./log/token")
+		s.log.Println("token read from ./log/token_" + s.Domain)
 	}
 
 	s.log.Println("token expiry date: " + s.TokenExp.Format(t.RFC1123Z))
@@ -70,8 +70,8 @@ func NewSession(URL, login, pass string) (*Session, error) {
 	return s, err
 }
 
-func (s *Session) tokenFromFile() error {
-	fd, err := os.Open("log/token")
+func (s *Session) tokenFromFile(domain string) error {
+	fd, err := os.Open("log/token_" + domain)
 	defer fd.Close()
 	if err != nil {
 		return err
@@ -91,7 +91,8 @@ func (s *Session) tokenFromFile() error {
 				return err
 			}
 		default:
-			return errors.New("too many lines in ./log/token file")
+			msg := "too many lines in ./log/token_" + domain
+			return errors.New(msg)
 		}
 	}
 
@@ -127,9 +128,9 @@ func (s *Session) getToken() error {
 	return nil
 }
 
-func (s *Session) saveToken() error {
+func (s *Session) saveToken(domain string) error {
 	flags := os.O_CREATE | os.O_TRUNC | os.O_WRONLY
-	fd, err := os.OpenFile("log/token", flags, 0600)
+	fd, err := os.OpenFile("log/token_"+domain, flags, 0600)
 	defer fd.Close()
 	if err != nil {
 		return err

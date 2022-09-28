@@ -31,7 +31,7 @@ func (s *Session) UpdateStock(stocks map[string]StockT) error {
 	// log changes to be made
 	s.log.Println("starting product stock update")
 	for _, stock := range stockList {
-		s.log.Printf("%6s : %-14s %6s => %f\n", stock.StockID,
+		s.log.Printf("%6s : %-14s %6s => %8.2f\n", stock.StockID,
 			stock.ProductCode, stock.Stock, stock.NewStock)
 	}
 
@@ -61,13 +61,18 @@ func (s *Session) UpdateStock(stocks map[string]StockT) error {
 	for i, data := range bulkDataList {
 		var resp bulkRespPutT
 		err := s.callApi(s.URL+"/webapi/rest/bulk/", "PUT", data, &resp)
-		if err != nil {
-			s.log.Printf("update failed on %d batch request\n", i)
-			return err
-		}
 
+		msg := fmt.Sprintf("update failed on %d batch request\n", i)
 		for _, i := range resp.Items {
-			fmt.Printf("%+v\n", i)
+			if i.Code != 200 {
+				s.log.Printf("%s\n%s - %s\nproduct: %s\n", msg,
+					i.Code, ERRCODE[i.Code], i.ID)
+				return errors.New(msg)
+			}
+		}
+		if err != nil || resp.Errors {
+			s.log.Printf("%s\n%s\n", msg, err)
+			return err
 		}
 	}
 
