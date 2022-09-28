@@ -53,6 +53,7 @@ func ParseStanMag(file string) (map[string]float64, int, error) {
 
 		if code == "" {
 			emptyProd++
+			errCount++
 			continue
 		}
 
@@ -69,6 +70,14 @@ func ParseStanMag(file string) (map[string]float64, int, error) {
 		w = "2nd field not a float number"
 		msg = fmt.Sprintf("line:%d %s\t'%s'", i, w, line)
 		if err != nil || !strings.Contains(quantity, ".") {
+			errCount++
+			l.Println(msg)
+			continue
+		}
+
+		w = "2nd field not a positive number"
+		msg = fmt.Sprintf("line:%d %s\t'%s'", i, w, line)
+		if quantityFl < 0 {
 			errCount++
 			l.Println(msg)
 			continue

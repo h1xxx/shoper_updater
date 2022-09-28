@@ -28,12 +28,12 @@ type StockT struct {
 	NewStock float64
 }
 
-type bulkRespT struct {
-	Errors bool     `json:"errors"`
-	Items  []itemsT `json:"items"`
+type bulkRespGetT struct {
+	Errors bool        `json:"errors"`
+	Items  []itemsGetT `json:"items"`
 }
 
-type itemsT struct {
+type itemsGetT struct {
 	Code      int        `json:"code"`
 	StockPage StockPageT `json:"body"`
 }
@@ -68,7 +68,7 @@ func (s *Session) GetStockList() ([]StockT, error) {
 	// prepare data for json payload
 	var bulkDataList [][]byte
 	for i := 2; i <= int(pagesCount); i += 25 {
-		bulkData, err := getPagesBulk(i, i+24)
+		bulkData, err := makeStocksGetData(i, i+24)
 		if err != nil {
 			msg := "can't prepare bulk data for getting stock info"
 			return []StockT{}, errors.New(msg)
@@ -80,7 +80,7 @@ func (s *Session) GetStockList() ([]StockT, error) {
 	var stockList []StockT
 	stockList = append(stockList, stockPage1.StockList...)
 	for _, data := range bulkDataList {
-		var resp bulkRespT
+		var resp bulkRespGetT
 		err = s.callApi(s.URL+"/webapi/rest/bulk/", "PUT", data, &resp)
 		if err != nil {
 			return []StockT{}, err
@@ -101,7 +101,7 @@ func (s *Session) GetStockList() ([]StockT, error) {
 	return stockList, nil
 }
 
-func getPagesBulk(pageStart, pageEnd int) ([]byte, error) {
+func makeStocksGetData(pageStart, pageEnd int) ([]byte, error) {
 	type bulkPageParamsT struct {
 		Limit string `json:"limit"`
 		Page  string `json:"page"`
@@ -137,30 +137,12 @@ func getPagesBulk(pageStart, pageEnd int) ([]byte, error) {
 	return postBody, nil
 }
 
-func getProductsBulk(productList []string) ([]byte, error) {
-	var data []map[string]string
-	for _, id := range productList {
-		el := make(map[string]string)
-		el["id"] = fmt.Sprintf("product-stocks-%d", id)
-		el["path"] = fmt.Sprintf("/webapi/rest/product-stocks/%d", id)
-		el["method"] = "GET"
-		data = append(data, el)
-	}
-
-	postBody, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-
-	return postBody, nil
-}
-
 // creates a map of product_id => product_info from product list
 func GetStockMap(stockList []StockT) (map[string]StockT, error) {
 	stocks := make(map[string]StockT)
 	var emptyProd int
 	for _, s := range stockList {
-		if s.ProductCode == "" {
+		if s.ProductCode == "" || s.StockID == "" {
 			emptyProd++
 			continue
 		}

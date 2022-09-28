@@ -68,5 +68,16 @@ func main() {
 	}
 	fmt.Printf("to update\t%6d\n", len(stocks))
 
+	if len(stocks) != 0 {
+		fmt.Println("\nupdating product stock...")
+		err = s.UpdateStock(stocks)
+		if err != nil {
+			fmt.Println("error updating product info, aborting...")
+			fmt.Println(err)
+			return
+		}
+		fmt.Println("done.")
+	}
+
 	s.LogFd.Close()
 }
