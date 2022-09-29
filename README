@@ -1,0 +1,33 @@
+Description
+===========
+
+A small utility to update stock info from Symplex 'Small Business' to shoper.pl.
+
+
+Installation (Windows)
+======================
+
+1. Download latest zip release from:
+   https://github.com/h1xxx/shoper_updater/releases
+
+2. Extract the zip file and go to the shoper_updater folder.
+
+3. Edit etc/login.conf file and enter correct credentials for your shoper sites.
+
+4. Put the latest data from Symplex 'Small Business' in data/Stan_mag.txt.
+
+5. Run start.bat.
+
+6. Sit back and enjoy.
+
+7. Check logs:
+
+   log/stan_mag.log      error logs when parsing Stan_mag.txt
+   log/shoper.log        info on stock changes in shoper
+
+
+
+Updates (Windows)
+=================
+
+Just copy over shoper_updater.exe from latest release to shoper_updater folder.
