@@ -7,7 +7,7 @@ build-win:
 package-win: build-win
 	git checkout etc/login.conf
 	mkdir -p bin/tmp/shoper_updater
-	cp -a bin/*.exe etc/ data/ bin/tmp/shoper_updater/
+	cp -a bin/*.exe windows/start.bat etc/ data/ bin/tmp/shoper_updater/
 	cd bin/tmp && zip shoper_updater.zip -r shoper_updater
 	mv bin/tmp/shoper_updater.zip bin/
 	rm -r bin/tmp

@@ -110,10 +110,10 @@ func (s *Session) getToken() error {
 	req.Close = true
 
 	resp, err := client.Do(req)
-	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		msg := fmt.Sprintf("error getting token: %d - %s",
 			resp.StatusCode, ERRCODE[resp.StatusCode])
