@@ -40,11 +40,12 @@ type itemsGetT struct {
 
 func (s *Session) getStockPage(page int) (StockPageT, error) {
 	var stockPage StockPageT
+	var stockPageErr StockPageT
 
 	url := fmt.Sprintf("%s/webapi/rest/product-stocks/?page=%d&limit=50",
 		s.URL, page)
 
-	err := s.callApi(url, "GET", nil, &stockPage)
+	err := s.callApi(url, "GET", nil, &stockPage, &stockPageErr)
 	if err != nil {
 		return stockPage, err
 	}
@@ -82,7 +83,9 @@ func (s *Session) GetStockList() ([]StockT, error) {
 	stockList = append(stockList, stockPage1.StockList...)
 	for _, data := range bulkDataList {
 		var resp bulkRespGetT
-		err = s.callApi(s.URL+"/webapi/rest/bulk/", "PUT", data, &resp)
+		var respErr bulkRespGetT
+		err = s.callApi(s.URL+"/webapi/rest/bulk/", "PUT", data,
+			&resp, &respErr)
 		if err != nil {
 			return []StockT{}, fmt.Errorf("GetStockList:: %w", err)
 		}

@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -24,7 +26,7 @@ var ERRCODE = map[int]string{
 	503: "System is temporarily unavailable (application has been completely locked by administrator)",
 }
 
-func (s *Session) callApi(url, method string, data []byte, res interface{}) error {
+func (s *Session) callApi(url, method string, data []byte, res, resErr interface{}) error {
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bytes.NewReader(data))
 	if err != nil {
@@ -56,9 +58,17 @@ func (s *Session) callApi(url, method string, data []byte, res interface{}) erro
 	}
 	slowDown(s.apiCallsLeft)
 
-	err = json.NewDecoder(resp.Body).Decode(&res)
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
+	}
+
+	err = json.NewDecoder(strings.NewReader(string(body))).Decode(&res)
+	if err != nil {
+		err = json.NewDecoder(strings.NewReader(string(body))).Decode(&resErr)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

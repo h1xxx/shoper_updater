@@ -37,32 +37,35 @@ func main() {
 	// main loop
 	lastTime := time.Now()
 	mTime := lastTime
-	msgWait := "retrying in 1 min."
+	msgWait := "retrying in 10 min."
 	for {
-		var errAll error
+		var errAny error
 
 		// read input data
 		stanMag, err := getStanMag()
 		if err != nil {
 			msg := "can't parse ./data/Stan_mag.txt"
 			fmt.Printf("%s, %s\n%s\n", msg, msgWait, err)
-			time.Sleep(1 * time.Minute)
+			time.Sleep(10 * time.Minute)
 			continue
 		}
 
 		// read data from each shop and update it
 		for _, shop := range shops {
-			err = shopUpdate(stanMag, shop)
+			err, errApi := shopUpdate(stanMag, shop)
 			if err != nil {
-				errAll = err
+				errAny = err
+			}
+			if errApi != nil {
+				fmt.Println(errApi)
 			}
 		}
 
 		// repeat the update if any errors where encountered
-		if errAll != nil {
+		if errAny != nil {
 			msg := "error during an update"
-			fmt.Printf("%s, %s\n%s\n", msg, msgWait, err)
-			time.Sleep(1 * time.Minute)
+			fmt.Printf("%s, %s\n%s\n", msg, msgWait, errAny)
+			time.Sleep(10 * time.Minute)
 			continue
 		}
 
@@ -73,7 +76,7 @@ func main() {
 			if err != nil {
 				msg := "can't read data/Stan_mag.txt"
 				fmt.Printf("%s, %s\n%s\n", msg, msgWait, err)
-				time.Sleep(1 * time.Minute)
+				time.Sleep(10 * time.Minute)
 				continue
 			}
 			mTime = fInfo.ModTime()
@@ -102,17 +105,19 @@ func getStanMag() (map[string]float64, error) {
 	return stanMag, nil
 }
 
-func shopUpdate(stanMag map[string]float64, shop in.ShopT) error {
+// first returned err is for general errors, second one for errors from
+// api when updating stock info
+func shopUpdate(stanMag map[string]float64, shop in.ShopT) (error, error) {
 	fmt.Printf("\n=== %s ===\n", strings.Trim(fp.Base(shop.Url), "www."))
 
 	s, err := sh.NewSession(shop.Url, shop.Login, shop.Pass)
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	stockList, err := s.GetStockList()
 	if err != nil {
-		return err
+		return err, nil
 	}
 
 	stocks := sh.GetStockMap(stockList)
@@ -123,21 +128,27 @@ func shopUpdate(stanMag map[string]float64, shop in.ShopT) error {
 
 	stocks, err = sh.GetUpdateStock(stocks)
 	if err != nil {
-		return err
+		return err, nil
 	}
 	fmt.Printf("to update\t%6d\n", len(stocks))
 
 	if len(stocks) != 0 {
 		fmt.Printf("updating product stock... ")
-		err = s.UpdateStock(stocks)
+		err, errApi := s.UpdateStock(stocks)
 		if err != nil {
 			fmt.Println("error.")
-			return err
+			return err, nil
+		}
+		if errApi != nil {
+			fmt.Println("error.")
+			return nil, errApi
 		}
 		fmt.Println("ok.")
+	} else {
+		fmt.Println("nothing to update.")
 	}
 
 	s.LogFd.Close()
 
-	return nil
+	return nil, nil
 }
