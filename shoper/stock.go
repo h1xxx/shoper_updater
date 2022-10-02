@@ -25,7 +25,7 @@ type StockT struct {
 	ProductCode string `json:"code"`
 	EAN         string `json:"ean"`
 
-	NewStock float64
+	NewStock int
 }
 
 type bulkRespGetT struct {
@@ -56,13 +56,14 @@ func (s *Session) GetStockList() ([]StockT, error) {
 	// get the first page to see the stock and stock pages counts
 	stockPage1, err := s.getStockPage(1)
 	if err != nil {
-		return []StockT{}, err
+		return []StockT{}, fmt.Errorf("GetStockList:: %w", err)
 	}
 
 	pagesCount := stockPage1.Pages
 	stockCount, err := strconv.ParseInt(stockPage1.StockCount, 10, 64)
 	if err != nil {
-		return []StockT{}, errors.New("can't parse stock count")
+		msg := "can't parse stock count"
+		return []StockT{}, errors.New("GetStockList:: " + msg)
 	}
 
 	// prepare data for json payload
@@ -71,7 +72,7 @@ func (s *Session) GetStockList() ([]StockT, error) {
 		bulkData, err := makeStocksGetData(i, i+24)
 		if err != nil {
 			msg := "can't prepare bulk data for getting stock info"
-			return []StockT{}, errors.New(msg)
+			return []StockT{}, errors.New("GetStockList:: " + msg)
 		}
 		bulkDataList = append(bulkDataList, bulkData)
 	}
@@ -83,7 +84,7 @@ func (s *Session) GetStockList() ([]StockT, error) {
 		var resp bulkRespGetT
 		err = s.callApi(s.URL+"/webapi/rest/bulk/", "PUT", data, &resp)
 		if err != nil {
-			return []StockT{}, err
+			return []StockT{}, fmt.Errorf("GetStockList:: %w", err)
 		}
 
 		for _, i := range resp.Items {
@@ -95,7 +96,7 @@ func (s *Session) GetStockList() ([]StockT, error) {
 
 	if len(stockList) != int(stockCount) {
 		msg := "len of stock list doesn't match info from API"
-		return []StockT{}, errors.New(msg)
+		return []StockT{}, errors.New("GetStockList:: " + msg)
 	}
 
 	return stockList, nil
@@ -138,7 +139,7 @@ func makeStocksGetData(pageStart, pageEnd int) ([]byte, error) {
 }
 
 // creates a map of product_id => product_info from product list
-func GetStockMap(stockList []StockT) (map[string]StockT, error) {
+func GetStockMap(stockList []StockT) map[string]StockT {
 	stocks := make(map[string]StockT)
 	var emptyProd int
 	for _, s := range stockList {
@@ -160,7 +161,7 @@ func GetStockMap(stockList []StockT) (map[string]StockT, error) {
 		fmt.Printf("WARNING! empty product count: %d\n", emptyProd)
 	}
 
-	return stocks, nil
+	return stocks
 }
 
 // outputs only products that are in input file and in Stan_mag.txt file
@@ -170,7 +171,7 @@ func GetStanMagStock(stocks map[string]StockT, stanMag map[string]float64) map[s
 		_, exists := stocks[k]
 		if exists {
 			product := stocks[k]
-			product.NewStock = v
+			product.NewStock = int(v)
 			res[k] = product
 		}
 	}
@@ -182,13 +183,13 @@ func GetStanMagStock(stocks map[string]StockT, stanMag map[string]float64) map[s
 func GetUpdateStock(stocks map[string]StockT) (map[string]StockT, error) {
 	res := make(map[string]StockT)
 	for k, v := range stocks {
-		stock, err := strconv.ParseFloat(v.Stock, 64)
+		stock, err := strconv.ParseInt(v.Stock, 10, 64)
 		if err != nil {
 			msg := "can't parse product stock count"
-			return res, errors.New(msg)
+			return res, errors.New("GetUpdateStock:: " + msg)
 		}
 
-		if stock != v.NewStock {
+		if int(stock) != v.NewStock {
 			res[k] = v
 		}
 	}

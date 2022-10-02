@@ -31,7 +31,7 @@ func (s *Session) UpdateStock(stocks map[string]StockT) error {
 	// log changes to be made
 	s.log.Println("starting product stock update")
 	for _, stock := range stockList {
-		s.log.Printf("%6s : %-14s %6s => %8.2f\n", stock.StockID,
+		s.log.Printf("%6s : %-14s %6s => %d.0\n", stock.StockID,
 			stock.ProductCode, stock.Stock, stock.NewStock)
 	}
 
@@ -43,7 +43,7 @@ func (s *Session) UpdateStock(stocks map[string]StockT) error {
 			min(i+24, len(stocks)-1))
 		if err != nil {
 			msg := "can't prepare bulk data for updating stock info"
-			return errors.New(msg)
+			return errors.New("UpdateStock:: " + msg)
 		}
 		bulkDataList = append(bulkDataList, bulkData)
 		reqCount += count
@@ -54,7 +54,7 @@ func (s *Session) UpdateStock(stocks map[string]StockT) error {
 		msg += "of requests.\ntry again or find a developer to solve "
 		msg += "this"
 		s.log.Println("error when preparing data. no update submitted")
-		return errors.New(msg)
+		return errors.New("UpdateStock:: " + msg)
 	}
 
 	// make the api calls to update stock info
@@ -62,17 +62,19 @@ func (s *Session) UpdateStock(stocks map[string]StockT) error {
 		var resp bulkRespPutT
 		err := s.callApi(s.URL+"/webapi/rest/bulk/", "PUT", data, &resp)
 
-		msg := fmt.Sprintf("update failed on %d batch request\n", i)
+		msg := fmt.Sprintf("update failed on %d batch request ", i)
 		for _, i := range resp.Items {
 			if i.Code != 200 {
-				s.log.Printf("%s\n%s - %s\nproduct: %s\n", msg,
-					i.Code, ERRCODE[i.Code], i.ID)
-				return errors.New(msg)
+				msg += fmt.Sprintf("with code %d - %s", i.Code,
+					ERRCODE[i.Code])
+				msg += fmt.Sprintf("\nproduct: %s\n", i.ID)
+				s.log.Printf("%s", msg)
+				return errors.New("UpdateStock:: " + msg)
 			}
 		}
 		if err != nil || resp.Errors {
 			s.log.Printf("%s\n%s\n", msg, err)
-			return err
+			return fmt.Errorf("UpdateStock:: %w", err)
 		}
 	}
 
@@ -112,7 +114,7 @@ func makeStocksPutData(stockList []StockT, start, end int) ([]byte, int, error) 
 		el.Method = "PUT"
 
 		var body bulkPageBodyT
-		body.Stock = fmt.Sprintf("%f", stock.NewStock)
+		body.Stock = fmt.Sprintf("%d", stock.NewStock)
 		el.Body = body
 
 		data = append(data, el)

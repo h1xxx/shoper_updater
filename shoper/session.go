@@ -37,7 +37,7 @@ func NewSession(URL, login, pass string) (*Session, error) {
 	flags := os.O_CREATE | os.O_APPEND | os.O_WRONLY
 	s.LogFd, err = os.OpenFile("log/shoper.log", flags, 0600)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewSession:: can't open log", err)
 	}
 
 	s.log = log.New(s.LogFd, "", log.LstdFlags)
@@ -49,7 +49,8 @@ func NewSession(URL, login, pass string) (*Session, error) {
 		err = s.getToken()
 		if err != nil {
 			s.log.Println(err)
-			return nil, err
+			msg := "NewSession:: can't parse token from file"
+			return nil, fmt.Errorf("NewSession:: %s\n%s", msg, err)
 		}
 
 		s.TokenExp = t.Now().Add(t.Second * t.Duration(s.TokenExpIn))
@@ -57,7 +58,8 @@ func NewSession(URL, login, pass string) (*Session, error) {
 		err = s.saveToken(s.Domain)
 		if err != nil {
 			s.log.Println(err)
-			return nil, err
+			msg := "NewSession:: can't save token"
+			return nil, fmt.Errorf("NewSession:: %s\n%s", msg, err)
 		}
 
 		s.log.Println("new token saved to ./log/token_" + s.Domain)

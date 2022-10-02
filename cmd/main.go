@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	fp "path/filepath"
+	"strings"
 	"time"
 
 	in "shoper_updater/input"
@@ -35,29 +37,42 @@ func main() {
 	// main loop
 	lastTime := time.Now()
 	mTime := lastTime
+	msgWait := "retrying in 1 min."
 	for {
+		var errAll error
+
+		// read input data
 		stanMag, err := getStanMag()
 		if err != nil {
+			msg := "can't parse ./data/Stan_mag.txt"
+			fmt.Printf("%s, %s\n%s\n", msg, msgWait, err)
 			time.Sleep(1 * time.Minute)
 			continue
 		}
 
+		// read data from each shop and update it
 		for _, shop := range shops {
 			err = shopUpdate(stanMag, shop)
 			if err != nil {
-				time.Sleep(1 * time.Minute)
-				continue
+				errAll = err
 			}
+		}
+
+		// repeat the update if any errors where encountered
+		if errAll != nil {
+			msg := "error during an update"
+			fmt.Printf("%s, %s\n%s\n", msg, msgWait, err)
+			time.Sleep(1 * time.Minute)
+			continue
 		}
 
 		// wait for new Stan_mag.txt file
 		fmt.Println("\nwaiting for data/Stan_mag.txt update...")
 		for mTime.Before(lastTime) || mTime == lastTime {
 			fInfo, err := os.Stat("data/Stan_mag.txt")
-			msg := "can't read data/Stan_mag.txt, waiting 1 min..."
 			if err != nil {
-				fmt.Println(msg)
-				fmt.Println(err)
+				msg := "can't read data/Stan_mag.txt"
+				fmt.Printf("%s, %s\n%s\n", msg, msgWait, err)
 				time.Sleep(1 * time.Minute)
 				continue
 			}
@@ -73,8 +88,6 @@ func getStanMag() (map[string]float64, error) {
 
 	stanMag, errCount, err := in.ParseStanMag("data/Stan_mag.txt")
 	if err != nil {
-		fmt.Println("can't parse ./data/Stan_mag.txt, retrying in 1 min.")
-		fmt.Println(err)
 		return stanMag, err
 	}
 	fmt.Printf("products\t%6d\n", len(stanMag))
@@ -83,36 +96,26 @@ func getStanMag() (map[string]float64, error) {
 	fmt.Printf("error rate\t%5d%%\n", errRate)
 
 	if errRate > 50 {
-		fmt.Println("error rate above 50%, retrying in 1 min.")
-		return stanMag, errors.New("")
+		return stanMag, errors.New("error rate above 50%")
 	}
 
 	return stanMag, nil
 }
 
 func shopUpdate(stanMag map[string]float64, shop in.ShopT) error {
+	fmt.Printf("\n=== %s ===\n", strings.Trim(fp.Base(shop.Url), "www."))
+
 	s, err := sh.NewSession(shop.Url, shop.Login, shop.Pass)
 	if err != nil {
-		fmt.Println("error while creating session, retrying in 1 min.")
-		fmt.Println(err)
 		return err
 	}
-
-	fmt.Printf("\n=== %s ===\n", s.Domain)
 
 	stockList, err := s.GetStockList()
 	if err != nil {
-		fmt.Println("error while getting stock page, retrying in 1 min.")
-		fmt.Println(err)
 		return err
 	}
 
-	stocks, err := sh.GetStockMap(stockList)
-	if err != nil {
-		fmt.Println("error while preparing stock map, retrying in 1 min.")
-		fmt.Println(err)
-		return err
-	}
+	stocks := sh.GetStockMap(stockList)
 	fmt.Printf("products\t%6d\n", len(stocks))
 
 	stocks = sh.GetStanMagStock(stocks, stanMag)
@@ -120,8 +123,6 @@ func shopUpdate(stanMag map[string]float64, shop in.ShopT) error {
 
 	stocks, err = sh.GetUpdateStock(stocks)
 	if err != nil {
-		fmt.Println("error while preparing update map, retrying in 1 min.")
-		fmt.Println(err)
 		return err
 	}
 	fmt.Printf("to update\t%6d\n", len(stocks))
@@ -130,11 +131,10 @@ func shopUpdate(stanMag map[string]float64, shop in.ShopT) error {
 		fmt.Printf("updating product stock... ")
 		err = s.UpdateStock(stocks)
 		if err != nil {
-			fmt.Println("error updating product info, retrying in 1 min.")
-			fmt.Println(err)
+			fmt.Println("error.")
 			return err
 		}
-		fmt.Println("done.")
+		fmt.Println("ok.")
 	}
 
 	s.LogFd.Close()
