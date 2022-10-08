@@ -16,13 +16,16 @@ Installation (Windows)
 
 4. Put the latest data from Symplex 'Small Business' in data/Stan_mag.txt.
 
-5. Run start.bat.
+5. Configure sets of products in etc/product_set.conf.
 
-6. Sit back and enjoy.
+6. Run start.bat.
 
-7. Check logs:
+7. Sit back and enjoy.
+
+8. Check logs:
 
    log/stan_mag.log      error logs when parsing Stan_mag.txt
+   log/product_set.log   error logs when parsing product_set.conf
    log/shoper.log        info on stock changes in shoper
 
 

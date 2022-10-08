@@ -45,7 +45,10 @@ func main() {
 			time.Now().Format("2006-01-02 15:04:05"))
 		fmt.Println("-------------------------------")
 
-		// read input data
+		// read config for product sets
+		sets := getProductSets()
+
+		// read current stock data
 		stanMag, err := getStanMag()
 		if err != nil {
 			msg := "can't parse ./data/Stan_mag.txt"
@@ -53,6 +56,9 @@ func main() {
 			time.Sleep(10 * time.Minute)
 			continue
 		}
+
+		// add stock info for product sets to stanMag data
+		in.AddSets(stanMag, sets)
 
 		// read data from each shop and update it
 		for _, shop := range shops {
@@ -100,13 +106,26 @@ func getStanMag() (map[string]float64, error) {
 	fmt.Printf("products\t%6d\n", len(stanMag))
 	fmt.Printf("errors\t\t%6d\n", errCount)
 	errRate := errCount * 100 / len(stanMag)
-	fmt.Printf("error rate\t%5d%%\n", errRate)
+	fmt.Printf("error rate\t%5d%% (max 50%%)\n", errRate)
 
 	if errRate > 50 {
 		return stanMag, errors.New("error rate above 50%")
 	}
 
 	return stanMag, nil
+}
+
+func getProductSets() []in.ProductSetT {
+	fmt.Println("\n=== product_set.conf ===")
+
+	sets, errCount, err := in.ParseProductSets("etc/product_set.conf")
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Printf("sets\t\t%6d\n", len(sets))
+	fmt.Printf("errors\t\t%6d\n", errCount)
+
+	return sets
 }
 
 // first returned err is for general errors, second one for errors from
@@ -119,6 +138,7 @@ func shopUpdate(stanMag map[string]float64, shop in.ShopT) (error, error) {
 		return err, nil
 	}
 
+	fmt.Println("getting info from shoper...")
 	stockList, err := s.GetStockList()
 	if err != nil {
 		return err, nil

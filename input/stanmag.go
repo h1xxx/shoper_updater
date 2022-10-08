@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -103,4 +104,41 @@ func ParseStanMag(file string) (map[string]float64, int, error) {
 	}
 
 	return stanMag, errCount, nil
+}
+
+func AddSets(stanMag map[string]float64, sets []ProductSetT) {
+	for _, set := range sets {
+		stanMag[set.SetCode] = calcSetStock(stanMag, set)
+	}
+}
+
+func calcSetStock(stanMag map[string]float64, set ProductSetT) float64 {
+	var setStock float64
+
+	_, setInStanmag := stanMag[set.SetCode]
+	if setInStanmag {
+		msg := "WARNING! Product set %s already exists in Stan_mag.txt,"
+		msg += " and its stock value will be recalculated.\n"
+		fmt.Printf(msg, set.SetCode)
+	}
+
+	for part, val := range set.Parts {
+		stock, exists := stanMag[part]
+		if exists {
+			if stock == 0 {
+				return 0
+			}
+			if setStock == 0 {
+				setStock = stock / val
+			} else {
+				setStock = math.Min(stock/val, setStock)
+			}
+		} else {
+			msg := "WARNING! Defined part %s from set %s does not"
+			msg += "exist in Stan_mag.txt\n"
+			fmt.Printf(msg, part, set.SetCode)
+			return 0
+		}
+	}
+	return setStock
 }
