@@ -15,7 +15,6 @@ type ProductSetT struct {
 	Name    string
 	SetCode string
 	Parts   map[string]float64
-	Stock   float64
 }
 
 func ParseProductSets(file string) ([]ProductSetT, int, error) {

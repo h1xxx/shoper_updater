@@ -129,9 +129,10 @@ func calcSetStock(stanMag map[string]float64, set ProductSetT) float64 {
 				return 0
 			}
 			if setStock == 0 {
-				setStock = stock / val
+				setStock = math.Floor(stock / val)
 			} else {
-				setStock = math.Min(stock/val, setStock)
+				setStock = math.Min(math.Floor(stock/val),
+					setStock)
 			}
 		} else {
 			msg := "WARNING! Defined part %s from set %s does not"
