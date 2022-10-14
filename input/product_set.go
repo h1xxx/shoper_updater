@@ -4,6 +4,7 @@ import (
 	"bufio"
 	//"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -36,6 +37,21 @@ func ParseProductSets(file string) ([]ProductSetT, int, error) {
 	if err != nil {
 		return sets, errCount, err
 	}
+
+	// deal with the optional UTF-8 BOM added in Windows
+	var bom [3]byte
+	_, err = io.ReadFull(fd, bom[:])
+	if err != nil {
+		return sets, errCount, err
+	}
+	if bom[0] != 0xef || bom[1] != 0xbb || bom[2] != 0xbf {
+		// not a BOM - go back to the beginning of the file
+		_, err = fd.Seek(0, 0)
+		if err != nil {
+			return sets, errCount, err
+		}
+	}
+
 	scanner := bufio.NewScanner(fd)
 
 	var i int
